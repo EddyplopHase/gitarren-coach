@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gitarren-Coach">
+<meta name="theme-color" content="#0f1115">
+<title>Gitarren-Coach</title>
+<style>
+  :root{--bg:#0f1115;--card:#181b22;--line:#262a33;--txt:#e9ecf1;--mut:#8b93a3;
+        --good:#3ddc84;--ok:#f5c542;--bad:#ff5c5c;--acc:#5aa9ff}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif}
+  body{padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 20px)}
+  h1{font-size:20px;margin:0 0 2px}
+  .sub{color:var(--mut);font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px}
+  label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+  select,input[type=range]{width:100%}
+  select{background:#0f1115;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px}
+  .row{display:flex;gap:10px;align-items:center}
+  .row>*{flex:1}
+  button{font:inherit;font-weight:600;border:0;border-radius:14px;padding:14px;font-size:17px;
+    background:var(--acc);color:#04121f;width:100%}
+  button.sec{background:#262a33;color:var(--txt)}
+  button.stop{background:var(--bad);color:#2a0606}
+  button:disabled{opacity:.4}
+  .val{font-variant-numeric:tabular-nums;color:var(--txt);float:right}
+  /* Stage */
+  #stage{text-align:center}
+  #section{color:var(--mut);font-size:14px;min-height:18px}
+  #chordBig{font-size:96px;font-weight:800;line-height:1;margin:6px 0 0;letter-spacing:-2px}
+  #finger{color:var(--mut);font-size:14px;font-family:ui-monospace,Menlo,monospace;min-height:18px}
+  #nextChord{color:var(--mut);font-size:15px;margin-top:6px;min-height:20px}
+  .dots{display:flex;justify-content:center;gap:14px;margin:14px 0 6px}
+  .dot{width:22px;height:22px;border-radius:50%;background:#262a33;border:2px solid transparent;transition:transform .08s}
+  .dot.cur{border-color:var(--txt);transform:scale(1.25)}
+  .dot.perfekt,.dot.gut{background:var(--good)}
+  .dot.frueh,.dot.spaet{background:var(--ok)}
+  .dot.verpasst{background:var(--bad)}
+  .meter{position:relative;height:30px;background:#0f1115;border:1px solid var(--line);border-radius:10px;margin-top:10px;overflow:hidden}
+  .meter .zone{position:absolute;top:0;bottom:0;background:rgba(61,220,132,.15)}
+  .meter .center{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--mut)}
+  .meter .mark{position:absolute;top:4px;bottom:4px;width:8px;margin-left:-4px;border-radius:4px;background:var(--txt);left:50%;transition:left .12s}
+  .meterLbl{display:flex;justify-content:space-between;color:var(--mut);font-size:12px;margin-top:3px}
+  #timingTxt{font-size:18px;font-weight:700;min-height:24px;margin-top:6px}
+  .chips{display:flex;gap:10px;margin-top:12px}
+  .chip{flex:1;background:#0f1115;border:1px solid var(--line);border-radius:12px;padding:10px}
+  .chip .k{color:var(--mut);font-size:12px}
+  .chip .v{font-size:22px;font-weight:700;margin-top:2px}
+  .lvl{height:6px;background:#0f1115;border-radius:3px;overflow:hidden;margin-top:12px}
+  .lvl>div{height:100%;width:0;background:var(--acc)}
+  .lane{display:flex;gap:6px;margin-top:12px;overflow:hidden}
+  .bar{flex:0 0 auto;min-width:44px;padding:8px 0;text-align:center;border-radius:10px;background:#0f1115;border:1px solid var(--line);font-weight:700}
+  .bar.now{border-color:var(--acc);color:var(--acc)}
+  .bar.ok{background:rgba(61,220,132,.18)} .bar.bad{background:rgba(255,92,92,.18)}
+  .good{color:var(--good)} .warn{color:var(--ok)} .badc{color:var(--bad)}
+  #results h2{font-size:18px;margin:0 0 8px}
+  .stat{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:15px}
+  .stat:last-child{border-bottom:0}
+  .tip{margin-top:10px;font-size:15px;line-height:1.4}
+  audio{width:100%;margin-top:10px}
+  .take{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--mut)}
+  .hint{font-size:13px;color:var(--mut);line-height:1.45}
+  .err{color:var(--bad);font-size:14px;margin-top:8px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+
+<h1>🎸 Gitarren-Coach</h1>
+<div class="sub">Spiel mit – die App hört zu und gibt Live-Feedback zu Timing &amp; Akkorden.</div>
+
+<div class="card" id="setup">
+  <label>Song</label>
+  <select id="song"></select>
+  <div id="songNote" class="hint" style="margin-top:6px"></div>
+
+  <label>Tempo <span class="val" id="bpmVal"></span></label>
+  <input type="range" id="bpm" min="50" max="150" step="1">
+
+  <div class="row">
+    <div>
+      <label>Metronom</label>
+      <select id="metro"><option value="all">Alle Schläge</option><option value="one">Nur die 1</option><option value="off">Aus (nur Einzähler)</option></select>
+    </div>
+    <div>
+      <label>Mikro-Empfindlichkeit <span class="val" id="gateVal"></span></label>
+      <input type="range" id="gate" min="1" max="10" step="1">
+    </div>
+  </div>
+
+  <label>Latenz-Ausgleich <span class="val" id="offVal"></span></label>
+  <input type="range" id="offset" min="-50" max="250" step="5">
+  <div class="row" style="margin-top:10px">
+    <button class="sec" id="calibBtn">Kalibrieren (8 Schläge)</button>
+  </div>
+  <div class="hint" style="margin-top:8px">Tipp: <b>Kabel-Kopfhörer</b> nutzen, sonst hört das Mikro den Klick mit. Kalibrieren: Schlag 8× genau auf den Klick – die App gleicht die Verzögerung aus.</div>
+</div>
+
+<div class="card" id="stage">
+  <div id="section">Bereit</div>
+  <div id="chordBig">–</div>
+  <div id="finger"></div>
+  <div id="nextChord"></div>
+  <div class="dots" id="dots"></div>
+
+  <div class="meter"><div class="zone" id="zone"></div><div class="center"></div><div class="mark" id="mark"></div></div>
+  <div class="meterLbl"><span>zu früh</span><span>zu spät</span></div>
+  <div id="timingTxt"></div>
+
+  <div class="chips">
+    <div class="chip"><div class="k">Erkannt</div><div class="v" id="detected">–</div></div>
+    <div class="chip"><div class="k">Akkorde ✓</div><div class="v" id="chordPct">–</div></div>
+    <div class="chip"><div class="k">Timing ✓</div><div class="v" id="timePct">–</div></div>
+  </div>
+  <div class="lvl"><div id="lvl"></div></div>
+  <div class="lane" id="lane"></div>
+
+  <div style="margin-top:14px"><button id="startBtn">▶︎ Start</button></div>
+  <div class="err" id="err"></div>
+</div>
+
+<div class="card hidden" id="results"></div>
+
+<script>
+/* ---------- Song-Daten ---------- */
+const rep = (arr, n) => Array.from({length:n}, () => arr).flat();
+const SONGS = [{
+  id: 'dtna-d',
+  title: 'Dance The Night Away',
+  artist: 'The Mavericks',
+  note: 'Nach D transponiert (Original: E / B7). Mit Kapodaster im 2. Bund klingen D/A wie E/B – dann passt es auch zur Original-Aufnahme. Struktur vereinfacht: Akkordwechsel jeden Takt, 4 Abschläge pro Takt.',
+  origBpm: 140, defaultBpm: 90, beatsPerBar: 4,
+  sections: [
+    {name:'Intro',     bars: rep(['D','A'], 6)},
+    {name:'Strophe 1', bars: rep(['D','A'], 8)},
+    {name:'Refrain',   bars: rep(['D','A'], 8)},
+    {name:'Strophe 2', bars: rep(['D','A'], 8)},
+    {name:'Refrain',   bars: rep(['D','A'], 8)},
+    {name:'Outro',     bars: [...rep(['D','A'], 3), 'D', 'D']},
+  ]
+}];
+const FINGER = { D: 'xx0232  (D-Dur)', A: 'x02220  (A-Dur)' };
+const ACCEPT = { D: ['D'], A: ['A','A7'] };
+
+/* ---------- Akkord-Vorlagen (Pitch-Classes: C=0 … B=11) ---------- */
+const PC_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const CHORD_DEFS = {
+  D:[2,6,9], A:[9,1,4], A7:[9,1,4,[7,.6]], G:[7,11,2], Em:[4,7,11], Bm:[11,2,6],
+  'F#m':[6,9,1], E:[4,8,11], C:[0,4,7], Am:[9,0,4], Dm:[2,5,9], Gm:[7,10,2]
+};
+const TEMPLATES = Object.entries(CHORD_DEFS).map(([name, notes]) => {
+  const v = new Float32Array(12);
+  notes.forEach(n => Array.isArray(n) ? v[n[0]] = n[1] : v[n] = 1);
+  return {name, v: norm(v)};
+});
+function norm(v){ let s=0; for (const x of v) s+=x*x; s=Math.sqrt(s)||1; return v.map(x=>x/s); }
+function matchChord(chroma){
+  const c = norm(Float32Array.from(chroma));
+  const scores = TEMPLATES.map(t => ({name:t.name, s: t.v.reduce((a,x,i)=>a+x*c[i],0)}));
+  scores.sort((a,b)=>b.s-a.s);
+  return scores; // sortiert, bester zuerst
+}
+
+/* ---------- Einstellungen ---------- */
+const $ = id => document.getElementById(id);
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem('gc_'+k); return v==null?d:JSON.parse(v);}catch{return d;} },
+  set(k,v){ try{ localStorage.setItem('gc_'+k, JSON.stringify(v)); }catch{} }
+};
+SONGS.forEach(s => $('song').add(new Option(`${s.artist} – ${s.title} (D/A)`, s.id)));
+const song = () => SONGS.find(s => s.id === $('song').value);
+$('songNote').textContent = song().note;
+$('bpm').value = store.get('bpm', song().defaultBpm);
+$('gate').value = store.get('gate', 5);
+$('offset').value = store.get('offset', 60);
+$('metro').value = store.get('metro', 'all');
+function showSettings(){
+  $('bpmVal').textContent = $('bpm').value + ' BPM' + (+$('bpm').value === song().origBpm ? ' (Original)' : ` · Original ${song().origBpm}`);
+  $('gateVal').textContent = $('gate').value;
+  $('offVal').textContent = $('offset').value + ' ms';
+}
+['bpm','gate','offset','metro'].forEach(id => $(id).addEventListener('input', () => { store.set(id, $(id).value); showSettings(); }));
+showSettings();
+const gateRms = () => 0.06 / Math.pow(1.45, +$('gate').value); // höher = empfindlicher
+
+/* ---------- Audio-Setup ---------- */
+let ctx, stream, anaS, anaL, fS, tS, fL, prevMag, pcOfBin, binLo, binHi, bandLo, bandHi;
+async function ensureAudio(){
+  if (ctx){ await ctx.resume(); return; }
+  try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch {}
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+  await ctx.resume();
+  const src = ctx.createMediaStreamSource(stream);
+  const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 65;
+  src.connect(hp);
+  anaS = ctx.createAnalyser(); anaS.fftSize = 1024; anaS.smoothingTimeConstant = 0;
+  anaL = ctx.createAnalyser(); anaL.fftSize = 8192; anaL.smoothingTimeConstant = 0;
+  hp.connect(anaS); hp.connect(anaL);
+  fS = new Float32Array(anaS.frequencyBinCount); tS = new Float32Array(anaS.fftSize);
+  fL = new Float32Array(anaL.frequencyBinCount); prevMag = new Float32Array(anaS.frequencyBinCount);
+  const sr = ctx.sampleRate;
+  bandLo = Math.floor(70 / (sr/anaS.fftSize));  bandHi = Math.ceil(1500 / (sr/anaS.fftSize)); // Klick (2–3 kHz) liegt außerhalb
+  binLo = Math.floor(75 / (sr/anaL.fftSize));   binHi = Math.ceil(1000 / (sr/anaL.fftSize));
+  pcOfBin = new Int8Array(anaL.frequencyBinCount);
+  for (let i=1;i<pcOfBin.length;i++){ const f=i*sr/anaL.fftSize; pcOfBin[i] = ((Math.round(12*Math.log2(f/440))+69)%12+12)%12; }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- Metronom ---------- */
+function click(time, accent, vol=0.5){
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.value = accent ? 3000 : 2200;
+  g.gain.setValueAtTime(0.0001, time);
+  g.gain.exponentialRampToValueAtTime(vol, time + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
+  o.connect(g).connect(ctx.destination); o.start(time); o.stop(time + 0.06);
+}
+
+/* ---------- Session-Zustand ---------- */
+let S = null; // laufende Session
+let liveChroma = new Float32Array(12), fluxHist = [], lastFlux = 0, lastOnset = 0;
+let recorder = null, recChunks = [];
+const takes = [];
+
+function buildSession(calib){
+  const sg = song(), bpm = calib ? 80 : +$('bpm').value, spb = 60/bpm, bpb = sg.beatsPerBar;
+  let bars = [];
+  if (calib) bars = [{chord:null, section:'Kalibrierung'}, {chord:null, section:'Kalibrierung'}];
+  else sg.sections.forEach(sec => sec.bars.forEach(ch => bars.push({chord:ch, section:sec.name})));
+  const total = bars.length * bpb;
+  const songStart = ctx.currentTime + 0.4 + 4*spb; // 4 Schläge Einzähler
+  return { calib, bpm, spb, bpb, bars, total, songStart, nextClick:-4, nextFinal:0, lastBar:-1,
+    beats: Array.from({length:total}, () => ({dev:null, chroma:new Float32Array(12), frames:0, chord:null, ok:null, cls:null})),
+    extra:0, offset: +$('offset').value/1000, metro: $('metro').value, timer:null };
+}
+const beatTime = k => S.songStart + k*S.spb;
+
+async function start(calib=false){
+  $('err').textContent = '';
+  try { await ensureAudio(); }
+  catch(e){
+    $('err').innerHTML = 'Kein Mikrofon-Zugriff. Die Seite muss über <b>https</b> geöffnet sein und das Mikrofon erlaubt werden (iPhone: Einstellungen → Safari → Mikrofon).';
+    return;
+  }
+  S = buildSession(calib);
+  $('results').classList.add('hidden');
+  $('dots').innerHTML = Array.from({length:S.bpb}, () => '<div class="dot"></div>').join('');
+  $('chordPct').textContent = '–'; $('timePct').textContent = '–'; $('timingTxt').textContent='';
+  $('startBtn').textContent = '■ Stopp'; $('startBtn').className = 'stop'; $('calibBtn').disabled = true;
+  ['song','bpm'].forEach(id => $(id).disabled = true);
+  // Zielzone (±40 ms) im Timing-Balken
+  const span = 150, z = 40; $('zone').style.left = (50 - z/span*50)+'%'; $('zone').style.width = (z/span*100)+'%';
+  // Aufnahme
+  if (!calib && window.MediaRecorder){
+    try {
+      const mime = MediaRecorder.isTypeSupported?.('audio/mp4') ? 'audio/mp4' : (MediaRecorder.isTypeSupported?.('audio/webm') ? 'audio/webm' : '');
+      recorder = new MediaRecorder(stream, mime ? {mimeType:mime} : undefined); recChunks = [];
+      recorder.ondataavailable = e => e.data.size && recChunks.push(e.data);
+      recorder.start();
+    } catch { recorder = null; }
+  }
+  S.timer = setInterval(scheduler, 25); scheduler();
+}
+
+function scheduler(){
+  if (!S) return;
+  while (S.nextClick < S.total && beatTime(S.nextClick) < ctx.currentTime + 0.12){
+    const k = S.nextClick, one = ((k % S.bpb) + S.bpb) % S.bpb === 0;
+    if (k < 0 || S.metro === 'all' || (S.metro === 'one' && one)) click(beatTime(k), one, k < 0 ? 0.6 : 0.45);
+    S.nextClick++;
+  }
+}
+
+function stop(finished){
+  if (!S) return;
+  clearInterval(S.timer);
+  const sess = S; S = null;
+  $('startBtn').textContent = '▶︎ Start'; $('startBtn').className = ''; $('calibBtn').disabled = false;
+  ['song','bpm'].forEach(id => $(id).disabled = false);
+  if (sess.calib){ finishCalib(sess); return; }
+  // restliche Schläge auswerten (bis zur Stopp-Stelle)
+  const played = Math.min(sess.total, Math.max(0, Math.floor((ctx.currentTime - sess.songStart)/sess.spb)));
+  const sessRef = sess; for (let k = sess.nextFinal; k < played; k++) finalizeBeat(sessRef, k);
+  sess.nextFinal = Math.max(sess.nextFinal, played);
+  const finalize = (url) => showResults(sess, url, finished);
+  if (recorder && recorder.state !== 'inactive'){
+    recorder.onstop = () => finalize(recChunks.length ? URL.createObjectURL(new Blob(recChunks, {type: recorder.mimeType || 'audio/mp4'})) : null);
+    recorder.stop();
+  } else finalize(null);
+}
+
+/* ---------- Analyse-Schleife ---------- */
+function loop(){
+  requestAnimationFrame(loop);
+  const now = ctx.currentTime;
+  anaS.getFloatTimeDomainData(tS);
+  let rms = 0; for (const x of tS) rms += x*x; rms = Math.sqrt(rms/tS.length);
+  $('lvl').style.width = Math.min(100, rms*600) + '%';
+  const gate = gateRms();
+
+  // Onset (Anschlag) per Spectral Flux im Band 70–1500 Hz
+  anaS.getFloatFrequencyData(fS);
+  let flux = 0;
+  for (let i=bandLo;i<=bandHi;i++){ const m = Math.pow(10, fS[i]/20); const d = m - prevMag[i]; if (d>0) flux += d; prevMag[i] = m; }
+  fluxHist.push(flux); if (fluxHist.length > 40) fluxHist.shift();
+  const med = [...fluxHist].sort((a,b)=>a-b)[fluxHist.length>>1] || 0;
+  if (rms > gate && flux > med*2.2 + 1e-4 && flux > lastFlux && now - lastOnset > 0.11){
+    lastOnset = now; onOnset(now);
+  }
+  lastFlux = flux;
+
+  // Chroma (welche Töne klingen) 75–1000 Hz
+  let chroma = null;
+  if (rms > gate*0.6){
+    anaL.getFloatFrequencyData(fL);
+    chroma = new Float32Array(12);
+    for (let i=binLo;i<=binHi;i++){ chroma[pcOfBin[i]] += Math.pow(10, fL[i]/20); }
+    const n = norm(chroma);
+    for (let i=0;i<12;i++) liveChroma[i] = liveChroma[i]*0.8 + n[i]*0.2;
+    $('detected').textContent = matchChord(liveChroma)[0].name;
+  } else {
+    for (let i=0;i<12;i++) liveChroma[i] *= 0.95;
+    if (Math.max(...liveChroma) < 0.15) $('detected').textContent = '–';
+  }
+
+  if (!S) return;
+  const rel = (now - S.songStart) / S.spb;
+  const cur = Math.floor(rel);
+  if (chroma && cur >= 0 && cur < S.total){ const b = S.beats[cur]; for (let i=0;i<12;i++) b.chroma[i] += chroma[i]; b.frames++; }
+  while (S.nextFinal < S.total && now > beatTime(S.nextFinal + 1) + 0.2){ finalizeBeat(S, S.nextFinal++); }
+  if (S && now > beatTime(S.total) + 0.3){ stop(true); return; }
+  if (S) updateStage(cur);
+}
+
+function onOnset(now){
+  if (!S) return;
+  const t = now - S.offset;
+  const k = Math.round((t - S.songStart) / S.spb);
+  if (k < 0 || k >= S.total) return;
+  const dev = t - beatTime(k);
+  if (Math.abs(dev) > S.spb*0.45) return;
+  const b = S.beats[k];
+  if (b.dev !== null){ S.extra++; return; }
+  b.dev = dev;
+  const ms = Math.round(dev*1000), span = 150;
+  $('mark').style.left = (50 + Math.max(-1, Math.min(1, ms/span))*50) + '%';
+  const cls = timingClass(ms);
+  $('timingTxt').innerHTML = cls === 'perfekt' ? '<span class="good">Perfekt!</span>'
+    : cls === 'gut' ? `<span class="good">Gut (${ms>0?'+':''}${ms} ms)</span>`
+    : `<span class="warn">${ms<0?'Zu früh':'Zu spät'} (${ms>0?'+':''}${ms} ms)</span>`;
+}
+function timingClass(ms){ const a = Math.abs(ms); return a <= 35 ? 'perfekt' : a <= 80 ? 'gut' : (ms < 0 ? 'frueh' : 'spaet'); }
+
+function finalizeBeat(sess, k){
+  const b = sess.beats[k];
+  b.cls = b.dev === null ? 'verpasst' : timingClass(Math.round(b.dev*1000));
+  const expected = sess.bars[Math.floor(k/sess.bpb)].chord;
+  if (b.frames >= 2){
+    const scores = matchChord(b.chroma);
+    b.chord = scores[0].name;
+    if (expected){
+      const exp = scores.filter(s => ACCEPT[expected].includes(s.name)).map(s=>s.s);
+      b.ok = ACCEPT[expected].includes(b.chord) || (exp.length && Math.max(...exp) >= scores[0].s*0.93);
+    }
+  } else { b.chord = null; b.ok = false; }
+  if (sess === S && !sess.calib) updateLiveStats(sess);
+}
+
+function updateLiveStats(sess){
+  const done = sess.beats.slice(0, sess.nextFinal + 1).filter(b => b.cls);
+  if (!done.length) return;
+  const cp = Math.round(100 * done.filter(b=>b.ok).length / done.length);
+  const tp = Math.round(100 * done.filter(b=>b.cls==='perfekt'||b.cls==='gut').length / done.length);
+  $('chordPct').innerHTML = `<span class="${cp>=75?'good':cp>=50?'warn':'badc'}">${cp}%</span>`;
+  $('timePct').innerHTML = `<span class="${tp>=75?'good':tp>=50?'warn':'badc'}">${tp}%</span>`;
+}
+
+function updateStage(cur){
+  const dots = $('dots').children;
+  if (cur < 0){
+    $('section').textContent = S.calib ? 'Kalibrierung – schlag genau auf jeden Klick' : 'Einzählen …';
+    $('chordBig').textContent = String(-cur);
+    $('finger').textContent = ''; $('nextChord').textContent = S.bars[0].chord ? 'Los geht’s mit ' + S.bars[0].chord : '';
+    for (const d of dots) d.className = 'dot';
+    return;
+  }
+  const bar = Math.floor(cur / S.bpb), inBar = cur % S.bpb, b = S.bars[bar];
+  if (!b) return;
+  if (bar !== S.lastBar){
+    S.lastBar = bar;
+    $('section').textContent = `${b.section} · Takt ${bar+1}/${S.bars.length}`;
+    $('chordBig').textContent = b.chord || '♪';
+    $('finger').textContent = b.chord ? FINGER[b.chord] : '';
+    const nx = S.bars[bar+1];
+    $('nextChord').textContent = nx ? (nx.chord ? 'Nächster: ' + nx.chord : '') : 'Letzter Takt';
+    renderLane(bar);
+  }
+  for (let i=0;i<dots.length;i++){
+    const k = bar*S.bpb + i, cls = S.beats[k]?.cls;
+    dots[i].className = 'dot' + (i === inBar ? ' cur' : '') + (cls && i !== inBar ? ' ' + cls : '');
+  }
+}
+
+function renderLane(bar){
+  let html = '';
+  for (let i = Math.max(0, bar-1); i < Math.min(S.bars.length, bar + 7); i++){
+    let cls = i === bar ? 'now' : '';
+    if (i < bar){
+      const bs = S.beats.slice(i*S.bpb, (i+1)*S.bpb);
+      cls = bs.filter(x=>x.ok).length >= S.bpb/2 ? 'ok' : 'bad';
+    }
+    html += `<div class="bar ${cls}">${S.bars[i].chord || '♪'}</div>`;
+  }
+  $('lane').innerHTML = html;
+}
+
+/* ---------- Kalibrierung ---------- */
+function finishCalib(sess){
+  const devs = sess.beats.map(b=>b.dev).filter(d=>d!==null).sort((a,b)=>a-b);
+  if (devs.length < 4){
+    $('err').textContent = `Nur ${devs.length} Anschläge erkannt – bitte lauter spielen oder Empfindlichkeit erhöhen.`;
+    return;
+  }
+  const med = devs[devs.length>>1];
+  const newOff = Math.round((+$('offset').value + med*1000) / 5) * 5;
+  $('offset').value = Math.max(-50, Math.min(250, newOff)); store.set('offset', $('offset').value); showSettings();
+  $('section').textContent = 'Kalibriert ✓';
+  $('timingTxt').innerHTML = `<span class="good">Latenz-Ausgleich: ${$('offset').value} ms</span>`;
+}
+
+/* ---------- Auswertung ---------- */
+function showResults(sess, url, finished){
+  const done = sess.beats.filter(b => b.cls);
+  const box = $('results');
+  if (!done.length){ box.classList.add('hidden'); return; }
+  const pct = (n) => Math.round(100*n/done.length);
+  const chordOk = done.filter(b=>b.ok).length;
+  const onTime = done.filter(b=>b.cls==='perfekt'||b.cls==='gut').length;
+  const missed = done.filter(b=>b.cls==='verpasst').length;
+  const hits = done.filter(b=>b.dev!==null);
+  const avgAbs = hits.length ? Math.round(1000*hits.reduce((a,b)=>a+Math.abs(b.dev),0)/hits.length) : 0;
+  const bias = hits.length ? Math.round(1000*hits.reduce((a,b)=>a+b.dev,0)/hits.length) : 0;
+  // Akkordwechsel: erster Schlag eines Takts mit neuem Akkord
+  const changes = [];
+  for (let bar=1; bar*sess.bpb < done.length; bar++){
+    if (sess.bars[bar].chord !== sess.bars[bar-1].chord){
+      const b = sess.beats[bar*sess.bpb];
+      changes.push({name: sess.bars[bar-1].chord + '→' + sess.bars[bar].chord, good: b.ok && (b.cls==='perfekt'||b.cls==='gut')});
+    }
+  }
+  const chg = {};
+  changes.forEach(c => { chg[c.name] ??= {n:0, g:0}; chg[c.name].n++; if (c.good) chg[c.name].g++; });
+  // Schwächster Teil
+  const secStats = {};
+  done.forEach((b,k) => { const s = sess.bars[Math.floor(k/sess.bpb)].section; secStats[s] ??= {n:0,ok:0}; secStats[s].n++; if (b.ok) secStats[s].ok++; });
+  const weakest = Object.entries(secStats).sort((a,b)=>a[1].ok/a[1].n - b[1].ok/b[1].n)[0];
+
+  const color = p => p>=75?'good':p>=50?'warn':'badc';
+  const cP = pct(chordOk), tP = pct(onTime);
+  let tips = [];
+  if (Math.abs(bias) > 30) tips.push(bias < 0 ? 'Du bist tendenziell <b>zu früh</b> – entspann die Schlaghand und warte auf den Klick.' : 'Du bist tendenziell <b>zu spät</b> – oft ein Zeichen, dass der Akkordwechsel zu lange dauert.');
+  const worstChg = Object.entries(chg).sort((a,b)=>a[1].g/a[1].n - b[1].g/b[1].n)[0];
+  if (worstChg && worstChg[1].g/worstChg[1].n < 0.7) tips.push(`Übe den Wechsel <b>${worstChg[0]}</b> isoliert: 1 Minute nur hin und her, ohne Rhythmus.`);
+  if (missed > done.length*0.15) tips.push('Viele Schläge nicht erkannt – lauter anschlagen oder Empfindlichkeit erhöhen.');
+  if (cP >= 80 && tP >= 80) tips.push(`Stark! Erhöhe das Tempo um 5–10 BPM (Ziel: ${sess.bpm < 140 ? 'Original 140' : 'gehalten'}).`);
+  if (!tips.length) tips.push('Gleiches Tempo noch 2–3 Mal, bis beide Werte über 80 % liegen.');
+
+  const take = {date: new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}), bpm: sess.bpm, cP, tP, url};
+  takes.unshift(take);
+
+  box.innerHTML = `
+    <h2>${finished ? 'Durchlauf fertig 🎉' : 'Auswertung (abgebrochen)'}</h2>
+    <div class="stat"><span>Akkorde richtig</span><b class="${color(cP)}">${cP}%</b></div>
+    <div class="stat"><span>Im Timing (±80 ms)</span><b class="${color(tP)}">${tP}%</b></div>
+    <div class="stat"><span>Ø Abweichung</span><b>${avgAbs} ms ${Math.abs(bias)>15 ? (bias<0?'· eher früh':'· eher spät') : ''}</b></div>
+    <div class="stat"><span>Verpasste Schläge</span><b>${missed} / ${done.length}</b></div>
+    ${Object.entries(chg).map(([n,v]) => `<div class="stat"><span>Wechsel ${n}</span><b class="${color(Math.round(100*v.g/v.n))}">${Math.round(100*v.g/v.n)}%</b></div>`).join('')}
+    ${weakest ? `<div class="stat"><span>Schwächster Teil</span><b>${weakest[0]}</b></div>` : ''}
+    <div class="tip">💡 ${tips.join('<br>💡 ')}</div>
+    ${url ? `<audio controls src="${url}"></audio>` : '<div class="hint" style="margin-top:8px">Aufnahme wird von diesem Browser nicht unterstützt.</div>'}
+    ${takes.length > 1 ? '<div class="take"><b>Frühere Durchläufe</b><br>' + takes.slice(1).map(t => `${t.date} · ${t.bpm} BPM · Akkorde ${t.cP}% · Timing ${t.tP}%`).join('<br>') + '</div>' : ''}
+  `;
+  box.classList.remove('hidden');
+  box.scrollIntoView({behavior:'smooth'});
+  $('section').textContent = 'Fertig'; $('chordBig').textContent = '✓'; $('finger').textContent=''; $('nextChord').textContent='';
+}
+
+/* ---------- Buttons ---------- */
+$('startBtn').addEventListener('click', () => S ? stop(false) : start(false));
+$('calibBtn').addEventListener('click', () => start(true));
+$('song').addEventListener('change', () => { $('songNote').textContent = song().note; $('bpm').value = song().defaultBpm; showSettings(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && S) stop(false); });
+</script>
+</body>
+</html>
